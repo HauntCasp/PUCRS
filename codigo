@@ -1,0 +1,182 @@
+import csv
+from datetime import datetime
+import matplotlib.pyplot as plt
+
+# Função para carregar os dados do arquivo CSV
+def carregar_dados(nome_arquivo):
+    cabecalho = []
+    dados = []
+    
+    with open(nome_arquivo, 'r', encoding='utf-8') as arquivo:
+        leitor = csv.reader(arquivo)
+        cabecalho = next(leitor)  # Lê a linha de cabeçalho
+        
+        for linha in leitor:
+            dados.append(linha)
+    
+    return cabecalho, dados
+
+# Função para filtrar os dados por data e tipo de dado
+def filtrar_dados(dados, data_inicio, data_fim, tipo_dado):
+    tipo_dado = tipo_dado.lower()
+    indice_dado = -1
+    
+    if tipo_dado == 'todos':
+        indice_dado = -1
+    elif tipo_dado == 'precipitação':
+        indice_dado = 1
+    elif tipo_dado == 'temperatura':
+        indice_dado = 2
+    elif tipo_dado == 'umidade':
+        indice_dado = 3
+    elif tipo_dado == 'vento':
+        indice_dado = 4
+    
+    dados_filtrados = []
+    
+    for linha in dados:
+        data_str = linha[0]
+        data = datetime.strptime(data_str, '%Y-%m-%d')
+        
+        if data_inicio <= data <= data_fim:
+            if indice_dado == -1:
+                dados_filtrados.append(linha)
+            else:
+                valor_dado = float(linha[indice_dado])
+                dados_filtrados.append([data_str, valor_dado])
+    
+    return dados_filtrados, indice_dado
+
+# Função para exibir os dados em modo texto
+def exibir_dados_texto(dados_filtrados, cabecalho, indice_dado):
+    if indice_dado == -1:
+        print(cabecalho)
+        for linha in dados_filtrados:
+            print(linha)
+    else:
+        print('Data\t\tValor')
+        for linha in dados_filtrados:
+            print(linha[0], '\t', linha[1])
+
+# Função para encontrar o mês mais chuvoso
+def encontrar_mes_mais_chuvoso(dados):
+    precipitacao_max = 0
+    mes_mais_chuvoso = ''
+    
+    for linha in dados:
+        data_str = linha[0]
+        precipitacao = float(linha[1])
+        
+        if precipitacao > precipitacao_max:
+            precipitacao_max = precipitacao
+            mes_mais_chuvoso = data_str[:7]
+    
+    return mes_mais_chuvoso, precipitacao_max
+
+# Função para calcular a média da temperatura mínima de um determinado mês nos últimos 11 anos
+def calcular_media_temp_min(dados, mes):
+    media_mes = 0
+    media_geral = 0
+    contador = 0
+    
+    for linha in dados:
+        data_str = linha[0]
+        data = datetime.strptime(data_str, '%Y-%m-%d')
+        temp_min = float(linha[3])
+        
+        if data.month == mes and 2006 <= data.year <= 2016:
+            media_mes += temp_min
+            contador += 1
+        
+        media_geral += temp_min
+    
+    if contador > 0:
+        media_mes /= contador
+    media_geral /= len(dados)
+    
+    return media_mes, media_geral
+
+# Função para gerar um gráfico de barras das médias de temperatura mínima de um determinado mês nos últimos 11 anos
+def gerar_grafico_barras(dados, mes):
+    anos = []
+    temperaturas = []
+    
+    for linha in dados:
+        data_str = linha[0]
+        data = datetime.strptime(data_str, '%Y-%m-%d')
+        temp_min = float(linha[3])
+        
+        if data.month == mes and 2006 <= data.year <= 2016:
+            anos.append(data.year)
+            temperaturas.append(temp_min)
+    
+    plt.bar(anos, temperaturas)
+    plt.xlabel('Ano')
+    plt.ylabel('Temperatura Mínima')
+    plt.title('Média da Temperatura Mínima no mês {}'.format(mes))
+    plt.show()
+
+# Função principal do programa
+def main():
+    nome_arquivo = 'dados_meteorologicos.csv'
+    cabecalho, dados = carregar_dados(nome_arquivo)
+    
+    while True:
+        print('\nMENU')
+        print('1. Visualizar dados em modo texto')
+        print('2. Encontrar o mês mais chuvoso')
+        print('3. Calcular média da temperatura mínima de um mês nos últimos 11 anos')
+        print('4. Gerar gráfico de barras das médias de temperatura mínima de um mês')
+        print('0. Sair')
+        
+        opcao = input('Selecione uma opção: ')
+        
+        if opcao == '1':
+            data_inicio_str = input('Informe a data de início (formato: AAAA-MM-DD): ')
+            data_fim_str = input('Informe a data de fim (formato: AAAA-MM-DD): ')
+            tipo_dado = input('Informe o tipo de dado (todos, precipitação, temperatura, umidade, vento): ')
+            
+            try:
+                data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d')
+                data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d')
+                
+                dados_filtrados, indice_dado = filtrar_dados(dados, data_inicio, data_fim, tipo_dado)
+                
+                if len(dados_filtrados) > 0:
+                    exibir_dados_texto(dados_filtrados, cabecalho, indice_dado)
+                else:
+                    print('Nenhum dado encontrado para o período e tipo de dado informados.')
+            
+            except ValueError:
+                print('Data inválida. Tente novamente.')
+        
+        elif opcao == '2':
+            mes_mais_chuvoso, precipitacao_max = encontrar_mes_mais_chuvoso(dados)
+            print('O mês mais chuvoso foi: {} (precipitação: {:.2f} mm)'.format(mes_mais_chuvoso, precipitacao_max))
+        
+        elif opcao == '3':
+            mes = int(input('Informe o mês (1-12): '))
+            
+            if 1 <= mes <= 12:
+                media_mes, media_geral = calcular_media_temp_min(dados, mes)
+                print('Média da temperatura mínima no mês {} nos últimos 11 anos: {:.2f} °C'.format(mes, media_mes))
+                print('Média geral da temperatura mínima para todo o período: {:.2f} °C'.format(media_geral))
+            else:
+                print('Mês inválido. Tente novamente.')
+        
+        elif opcao == '4':
+            mes = int(input('Informe o mês (1-12): '))
+            
+            if 1 <= mes <= 12:
+                gerar_grafico_barras(dados, mes)
+            else:
+                print('Mês inválido. Tente novamente.')
+        
+        elif opcao == '0':
+            break
+        
+        else:
+            print('Opção inválida. Tente novamente.')
+
+if __name__ == '__main__':
+    main()
